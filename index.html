@@ -331,7 +331,7 @@ const T = {
     speak:"発音を聞く", tapToHear:"タップで発音",
     endless:"無限単語テスト", endlessSub:"終わりなく出題。苦手な単語ほどよく出ます。ハートは減りません。",
     endStart:"テスト開始", endRange:"出題範囲", endBest:"自己ベスト", endCorrect:"正解数", endCombo:"最大コンボ",
-    endFinish:"テスト終了", endNew:"自己ベスト更新！", endAnswered:"回答数", endPickOne:"範囲を1つ以上選んでください", combo:"コンボ"
+    endFinish:"テスト終了", endNew:"自己ベスト更新！", endAnswered:"回答数", endPickOne:"範囲を1つ以上選んでください", combo:"コンボ", nextQ:"次へ"
   },
   en:{
     learn:"Learn", practice:"Words", roulette:"Roulette", quests:"Quests", profile:"Profile",
@@ -360,7 +360,7 @@ const T = {
     speak:"Listen", tapToHear:"Tap to hear",
     endless:"Endless word test", endlessSub:"Questions never stop. Weak words come up more often. No hearts lost.",
     endStart:"Start test", endRange:"Topics", endBest:"Personal best", endCorrect:"Correct", endCombo:"Best combo",
-    endFinish:"Test finished", endNew:"New personal best!", endAnswered:"Answered", endPickOne:"Pick at least one topic", combo:"combo"
+    endFinish:"Test finished", endNew:"New personal best!", endAnswered:"Answered", endPickOne:"Pick at least one topic", combo:"combo", nextQ:"Next"
   }
 };
 const t = k => T[S.lang][k] ?? k;
@@ -508,12 +508,12 @@ function distractors(item, n, field){
   for(const p of pool){ const v=field(p); if(!seen.has(v)){ seen.add(v); out.push(p);} if(out.length>=n) break; }
   return out;
 }
-function makeQuestion(item, idx){
+function makeQuestion(item, idx, noType){
   const multi = words(item.es).length >= 2;
   const types = ["es2m","m2es"];
   if (canSpeak) types.push("listen");
   if (multi) types.push("build","build");
-  if (strength(item.es) >= 2) types.push("type");
+  if (strength(item.es) >= 2 && !noType) types.push("type");
   let type = types[(idx + Math.floor(Math.random()*types.length)) % types.length];
   if (idx===0) type = "es2m"; // gentle start
   const q = {type, item};
@@ -558,7 +558,7 @@ function nextEndlessQ(){
   const due = L.retry.findIndex(x=>x.due<=L.answered && x.item.es!==L.lastEs);
   const item = due>=0 ? L.retry.splice(due,1)[0].item : pickEndless();
   L.lastEs = item.es;
-  return makeQuestion(item, L.answered===0 ? 0 : L.answered+1);
+  return makeQuestion(item, L.answered===0 ? 0 : L.answered+1, true);
 }
 function finishEndless(){
   const v = {correct:L.correctN, answered:L.answered, combo:L.maxCombo, gems:Math.floor(L.correctN/5)};
@@ -622,13 +622,15 @@ function renderLesson(){
   }
   let foot;
   if (L.state==="ask"){
-    foot = `<div class="lfoot">${q.type==="listen"?`<button class="btn ghost" style="margin-bottom:12px" onclick="skipListen()">${t("skipListen")}</button>`:""}
-      <button class="btn ok" id="checkBtn" onclick="check()" ${hasAnswer()?"":"disabled"}>${t("check")}</button></div>`;
+    const skip = q.type==="listen" ? `<button class="btn ghost" ${L.endless?"":`style="margin-bottom:12px"`} onclick="skipListen()">${t("skipListen")}</button>` : "";
+    foot = L.endless
+      ? (skip ? `<div class="lfoot">${skip}</div>` : "")
+      : `<div class="lfoot">${skip}<button class="btn ok" id="checkBtn" onclick="check()" ${hasAnswer()?"":"disabled"}>${t("check")}</button></div>`;
   } else {
     const ok = L.state==="right";
     foot = `<div class="sheet ${ok?"ok":"ng"}"><h3>${ok?"✅ "+t("correct"):"❌ "+t("wrong")}</h3>
       <p>${ok?"":`<b>${t("answer")}</b>${esc(q.item.es)}<br>`}<b>${t("meaning")}</b>${esc(q.item.es)} = ${esc(mean(q.item))}</p>
-      <button class="btn ${ok?"ok":"ng"}" onclick="next()">${t("cont")}</button></div>`;
+      <button class="btn ${ok?"ok":"ng"}" onclick="next()">${L.endless?t("nextQ"):t("cont")}</button></div>`;
   }
   $("#main").innerHTML = `<div class="lesson">
     ${L.endless
@@ -647,8 +649,10 @@ function choiceCls(q,i){
 }
 function hasAnswer(){ const q=L.queue[0]; if(q.type==="build") return q.picked.length>0; if(q.type==="type") return !!(L.sel&&L.sel.trim()); return L.sel!==null; }
 function updateCheck(){ const b=$("#checkBtn"); if(b) b.disabled=!hasAnswer(); }
-function pick(i){ if(L.state!=="ask") return; L.sel=i; const q=L.queue[0]; if(q.type!=="es2m") speak(q.opts[i].es); renderLesson(); }
-function pickTile(i){ const q=L.queue[0]; if(L.state!=="ask"||q.tiles[i].used) return; q.tiles[i].used=true; q.picked.push(i); speak(q.tiles[i].w); renderLesson(); }
+function pick(i){ if(L.state!=="ask") return; L.sel=i; const q=L.queue[0]; if(L.endless){ check(); return; } if(q.type!=="es2m") speak(q.opts[i].es); renderLesson(); }
+function pickTile(i){ const q=L.queue[0]; if(L.state!=="ask"||q.tiles[i].used) return; q.tiles[i].used=true; q.picked.push(i);
+  if (L.endless && q.picked.length===words(q.item.es).length){ check(); return; }
+  speak(q.tiles[i].w); renderLesson(); }
 function unpickTile(k){ const q=L.queue[0]; if(L.state!=="ask") return; const ti=q.picked.splice(k,1)[0]; q.tiles[ti].used=false; renderLesson(); }
 function addAccent(a){ const ta=$("#typein"); const s=ta.selectionStart, e=ta.selectionEnd; ta.value=ta.value.slice(0,s)+a+ta.value.slice(e); ta.selectionStart=ta.selectionEnd=s+a.length; L.sel=ta.value; ta.focus(); updateCheck(); }
 function skipListen(){ const q=L.queue[0]; q.type="m2es"; L.sel=null; renderLesson(); }
@@ -664,9 +668,11 @@ function check(){
   else { w.w++; L.mistakes++; if(!L.endless) S.hearts=Math.max(0,S.hearts-1); L.state="wrong"; L.combo=0; }
   if (L.endless) checkQuests();
   save(); renderLesson();
+  if (L.endless && ok){ clearTimeout(L.autoT); L.autoT = setTimeout(()=>{ if(view.name==="lesson" && L.state==="right") next(); }, 900); }
 }
 function next(){
   if (L.endless){
+    clearTimeout(L.autoT);
     const q = L.queue.shift();
     if (L.state==="wrong") L.retry.push({item:q.item, due:L.answered+2});
     L.sel=null; L.state="ask";
@@ -683,6 +689,7 @@ function next(){
 }
 function quitLesson(){
   try{ speechSynthesis.cancel(); }catch(e){}
+  if (L) clearTimeout(L.autoT);
   if (L && L.endless && L.answered>0){ finishEndless(); return; }
   go(S.tab);
 }
