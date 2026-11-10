@@ -331,7 +331,7 @@ const T = {
     speak:"発音を聞く", tapToHear:"タップで発音",
     endless:"無限単語テスト", endlessSub:"終わりなく出題。苦手な単語ほどよく出ます。ハートは減りません。",
     endStart:"テスト開始", endRange:"出題範囲", endBest:"自己ベスト", endCorrect:"正解数", endCombo:"最大コンボ",
-    endFinish:"テスト終了", endNew:"自己ベスト更新！", endAnswered:"回答数", endPickOne:"範囲を1つ以上選んでください", combo:"コンボ", nextQ:"次へ"
+    endFinish:"テスト終了", endNew:"自己ベスト更新！", endAnswered:"回答数", endPickOne:"範囲を1つ以上選んでください", combo:"コンボ", nextQ:"次へ", listenOff:"30分間リスニング問題はお休みします"
   },
   en:{
     learn:"Learn", practice:"Words", roulette:"Roulette", quests:"Quests", profile:"Profile",
@@ -360,7 +360,7 @@ const T = {
     speak:"Listen", tapToHear:"Tap to hear",
     endless:"Endless word test", endlessSub:"Questions never stop. Weak words come up more often. No hearts lost.",
     endStart:"Start test", endRange:"Topics", endBest:"Personal best", endCorrect:"Correct", endCombo:"Best combo",
-    endFinish:"Test finished", endNew:"New personal best!", endAnswered:"Answered", endPickOne:"Pick at least one topic", combo:"combo", nextQ:"Next"
+    endFinish:"Test finished", endNew:"New personal best!", endAnswered:"Answered", endPickOne:"Pick at least one topic", combo:"combo", nextQ:"Next", listenOff:"No listening questions for 30 minutes"
   }
 };
 const t = k => T[S.lang][k] ?? k;
@@ -511,7 +511,7 @@ function distractors(item, n, field){
 function makeQuestion(item, idx, noType){
   const multi = words(item.es).length >= 2;
   const types = ["es2m","m2es"];
-  if (canSpeak) types.push("listen");
+  if (canSpeak && !listenPaused()) types.push("listen");
   if (multi) types.push("build","build");
   if (strength(item.es) >= 2 && !noType) types.push("type");
   let type = types[(idx + Math.floor(Math.random()*types.length)) % types.length];
@@ -655,7 +655,13 @@ function pickTile(i){ const q=L.queue[0]; if(L.state!=="ask"||q.tiles[i].used) r
   speak(q.tiles[i].w); renderLesson(); }
 function unpickTile(k){ const q=L.queue[0]; if(L.state!=="ask") return; const ti=q.picked.splice(k,1)[0]; q.tiles[ti].used=false; renderLesson(); }
 function addAccent(a){ const ta=$("#typein"); const s=ta.selectionStart, e=ta.selectionEnd; ta.value=ta.value.slice(0,s)+a+ta.value.slice(e); ta.selectionStart=ta.selectionEnd=s+a.length; L.sel=ta.value; ta.focus(); updateCheck(); }
-function skipListen(){ const q=L.queue[0]; q.type="m2es"; L.sel=null; renderLesson(); }
+const listenPaused = () => Date.now() < (S.noListenUntil || 0);
+function skipListen(){
+  S.noListenUntil = Date.now() + 30*60*1000; save();
+  // Turn every queued listening question into a "choose the Spanish" one.
+  L.queue.forEach(q=>{ if(q.type==="listen") q.type="m2es"; });
+  L.sel=null; renderLesson(); toast("🔇 "+t("listenOff"));
+}
 function check(){
   if (!hasAnswer()) return;
   const q = L.queue[0]; let ok;
