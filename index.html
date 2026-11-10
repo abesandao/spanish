@@ -328,7 +328,10 @@ const T = {
     refill:"ハートを回復（💎30）", heartsFull:"ハートは満タンです", reset:"データをリセット", resetQ:"本当にすべてのデータを消しますか？",
     noHearts:"ハートがありません。プロフィールで回復するか、明日まで待とう。",
     perfect:"パーフェクト！", gemReward:"ジェム獲得", questDone:"クエスト達成！",
-    speak:"発音を聞く", tapToHear:"タップで発音"
+    speak:"発音を聞く", tapToHear:"タップで発音",
+    endless:"無限単語テスト", endlessSub:"終わりなく出題。苦手な単語ほどよく出ます。ハートは減りません。",
+    endStart:"テスト開始", endRange:"出題範囲", endBest:"自己ベスト", endCorrect:"正解数", endCombo:"最大コンボ",
+    endFinish:"テスト終了", endNew:"自己ベスト更新！", endAnswered:"回答数", endPickOne:"範囲を1つ以上選んでください", combo:"コンボ"
   },
   en:{
     learn:"Learn", practice:"Words", roulette:"Roulette", quests:"Quests", profile:"Profile",
@@ -354,7 +357,10 @@ const T = {
     refill:"Refill hearts (💎30)", heartsFull:"Hearts are full", reset:"Reset data", resetQ:"Really delete all data?",
     noHearts:"No hearts left. Refill in Profile or wait until tomorrow.",
     perfect:"Perfect!", gemReward:"Gems earned", questDone:"Quest complete!",
-    speak:"Listen", tapToHear:"Tap to hear"
+    speak:"Listen", tapToHear:"Tap to hear",
+    endless:"Endless word test", endlessSub:"Questions never stop. Weak words come up more often. No hearts lost.",
+    endStart:"Start test", endRange:"Topics", endBest:"Personal best", endCorrect:"Correct", endCombo:"Best combo",
+    endFinish:"Test finished", endNew:"New personal best!", endAnswered:"Answered", endPickOne:"Pick at least one topic", combo:"combo"
   }
 };
 const t = k => T[S.lang][k] ?? k;
@@ -376,6 +382,7 @@ function rollDay(){
   if (S.lastActive && dayDiff(S.lastActive, today()) > 1) S.streak = 0;
   save();
 }
+if (!S.endless) S.endless = {best:0, bestCombo:0, units:UNITS.map(u=>u.id)};
 rollDay();
 function markActive(){ // returns true if streak advanced today
   const td = today();
@@ -439,11 +446,11 @@ function render(){
   rollDay();
   document.documentElement.lang = S.lang;
   const m = $("#main"), nav = $("#nav");
-  const full = ["lesson","result","fail","streak"].includes(view.name);
+  const full = ["lesson","result","fail","streak","endres"].includes(view.name);
   nav.style.display = full ? "none" : "flex";
   m.scrollTop = 0;
   ({learn:renderLearn, words:renderWords, roulette:renderRoulette, quests:renderQuests, profile:renderProfile,
-    lesson:renderLesson, result:renderResult, fail:renderFail, streak:renderStreak})[view.name]();
+    lesson:renderLesson, result:renderResult, endres:renderEndResult, fail:renderFail, streak:renderStreak})[view.name]();
   if(!full){
     const tabs=[["learn","🏠"],["words","📖"],["roulette","🎡"],["quests","🏆"],["profile","👤"]];
     nav.innerHTML = tabs.map(([k,ic])=>`<button class="${view.name===k?"on":""}" onclick="go('${k}')"><span class="ic">${ic}</span>${t(k==="words"?"practice":k)}</button>`).join("");
@@ -527,8 +534,62 @@ function startLesson(key){
   const pool = shuffle(les.items).slice(0, Math.min(10, les.items.length));
   // pad to at least 6 questions
   while(pool.length < 6) pool.push(les.items[Math.floor(Math.random()*les.items.length)]);
-  L = {key, queue: pool.map((it,i)=>makeQuestion(it,i)), total: pool.length, doneCount:0, mistakes:0, answered:0, correctN:0, sel:null, state:"ask"};
+  L = {key, label:les.label, queue: pool.map((it,i)=>makeQuestion(it,i)), total: pool.length, doneCount:0, mistakes:0, answered:0, correctN:0, sel:null, state:"ask"};
   go("lesson");
+}
+
+/* ---- Endless word test ---- */
+function startEndless(){
+  const pool = ALL_ITEMS.filter(i=>S.endless.units.includes(i.unit));
+  if (!pool.length){ toast(t("endPickOne")); return; }
+  L = {endless:true, key:"endless", label:t("endless"), pool, queue:[], retry:[], lastEs:null,
+       doneCount:0, mistakes:0, answered:0, correctN:0, combo:0, maxCombo:0, sel:null, state:"ask"};
+  L.queue.push(nextEndlessQ());
+  go("lesson");
+}
+function pickEndless(){
+  let tot = 0;
+  const ws = L.pool.map(i=>{ const w = i.es===L.lastEs ? 0 : 1 + (5-strength(i.es))*0.8 + (isWeak(i.es)?3:0); tot+=w; return w; });
+  let r = Math.random()*tot;
+  for (let k=0;k<L.pool.length;k++){ r-=ws[k]; if(r<=0) return L.pool[k]; }
+  return L.pool[0];
+}
+function nextEndlessQ(){
+  const due = L.retry.findIndex(x=>x.due<=L.answered && x.item.es!==L.lastEs);
+  const item = due>=0 ? L.retry.splice(due,1)[0].item : pickEndless();
+  L.lastEs = item.es;
+  return makeQuestion(item, L.answered===0 ? 0 : L.answered+1);
+}
+function finishEndless(){
+  const v = {correct:L.correctN, answered:L.answered, combo:L.maxCombo, gems:Math.floor(L.correctN/5)};
+  v.newBest = v.correct > S.endless.best;
+  if (v.newBest) S.endless.best = v.correct;
+  S.endless.bestCombo = Math.max(S.endless.bestCombo, v.combo);
+  S.gems += v.gems; S.xp += v.correct;
+  v.advanced = L.correctN >= 10 ? markActive() : false;
+  checkQuests(); save();
+  view = Object.assign({name:"endres"}, v); render();
+  if (v.correct) confetti();
+}
+function renderEndResult(){
+  const v = view, acc = v.answered ? Math.round(v.correct/v.answered*100) : 0;
+  $("#main").innerHTML = `<div class="center">
+    <div class="pop">${mascot(130)}</div>
+    <div class="h1" style="color:var(--sun-d);font-size:28px">${v.newBest?"🏅 "+t("endNew"):t("endFinish")}</div>
+    <div class="statgrid">
+      <div class="card" style="border-color:var(--ok)"><small style="background:var(--ok)">${t("endCorrect")}</small>✅ ${v.correct}</div>
+      <div class="card" style="border-color:var(--sun)"><small style="background:var(--sun)">${t("endCombo")}</small>🔥 ${v.combo}</div>
+      <div class="card" style="border-color:var(--blue)"><small style="background:var(--blue)">${t("accuracy")}</small>🎯 ${acc}%</div>
+    </div>
+    <p class="muted">${t("endBest")}: ${S.endless.best} ・ 💎 +${v.gems}</p>
+    <div style="width:100%;display:grid;gap:12px;margin-top:8px">
+      <button class="btn" onclick="startEndless()">${t("retry")}</button>
+      <button class="btn ghost" onclick="${v.advanced?"go('streak')":"go(S.tab)"}">${t("home")}</button></div></div>`;
+}
+function toggleEndUnit(id){
+  const u = S.endless.units, i = u.indexOf(id);
+  if (i>=0) u.splice(i,1); else u.push(id);
+  save(); renderWords();
 }
 function renderLesson(){
   const q = L.queue[0];
@@ -570,8 +631,10 @@ function renderLesson(){
       <button class="btn ${ok?"ok":"ng"}" onclick="next()">${t("cont")}</button></div>`;
   }
   $("#main").innerHTML = `<div class="lesson">
-    <div class="lhead"><button class="x" onclick="quitLesson()" aria-label="close">✕</button><div class="bar"><i style="width:${pct}%"></i></div><span class="hearts">❤️ ${S.hearts}</span></div>
-    <div class="qbody"><div class="qtype">${q.type==="build"||q.type==="type"?"✍️":"⭐"} ${esc(findLesson(L.key).label)}</div>${body}</div>
+    ${L.endless
+      ? `<div class="lhead"><button class="x" onclick="quitLesson()" aria-label="close">✕</button><div style="flex:1;display:flex;gap:16px;font-weight:900;font-size:16px"><span style="color:var(--ok)">✅ ${L.correctN}</span><span style="color:var(--ink2)">/ ${L.answered}</span></div><span class="stat" style="color:${L.combo>=3?"var(--pri)":"var(--ink2)"}">🔥 ${L.combo} ${t("combo")}</span></div>`
+      : `<div class="lhead"><button class="x" onclick="quitLesson()" aria-label="close">✕</button><div class="bar"><i style="width:${pct}%"></i></div><span class="hearts">❤️ ${S.hearts}</span></div>`}
+    <div class="qbody"><div class="qtype">${q.type==="build"||q.type==="type"?"✍️":(L.endless?"♾️":"⭐")} ${esc(L.label)}</div>${body}</div>
     ${foot}</div>`;
   if (q.type==="listen" && L.state==="ask" && !q.played){ q.played=true; setTimeout(()=>speak(q.item.es),300); }
   if (q.type==="type" && L.state==="ask"){ const ta=$("#typein"); ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length); }
@@ -597,11 +660,19 @@ function check(){
   else ok = q.opts[L.sel] === q.item;
   const w = wstat(q.item.es);
   L.answered++;
-  if (ok){ w.c++; L.correctN++; S.daily.correct++; L.state="right"; speak(q.item.es); }
-  else { w.w++; L.mistakes++; S.hearts=Math.max(0,S.hearts-1); L.state="wrong"; }
+  if (ok){ w.c++; L.correctN++; S.daily.correct++; L.state="right"; speak(q.item.es); L.combo=(L.combo||0)+1; L.maxCombo=Math.max(L.maxCombo||0,L.combo); }
+  else { w.w++; L.mistakes++; if(!L.endless) S.hearts=Math.max(0,S.hearts-1); L.state="wrong"; L.combo=0; }
+  if (L.endless) checkQuests();
   save(); renderLesson();
 }
 function next(){
+  if (L.endless){
+    const q = L.queue.shift();
+    if (L.state==="wrong") L.retry.push({item:q.item, due:L.answered+2});
+    L.sel=null; L.state="ask";
+    L.queue.push(nextEndlessQ());
+    renderLesson(); return;
+  }
   const q = L.queue.shift();
   if (L.state==="right") L.doneCount++;
   else L.queue.push(makeQuestion(q.item, 1)); // retry later
@@ -610,7 +681,11 @@ function next(){
   if (!L.queue.length){ finishLesson(); return; }
   renderLesson();
 }
-function quitLesson(){ speechSynthesis && speechSynthesis.cancel && speechSynthesis.cancel(); go(S.tab); }
+function quitLesson(){
+  try{ speechSynthesis.cancel(); }catch(e){}
+  if (L && L.endless && L.answered>0){ finishEndless(); return; }
+  go(S.tab);
+}
 function finishLesson(){
   const perfect = L.mistakes===0;
   const xp = 10 + (perfect?5:0);
@@ -788,6 +863,16 @@ function renderWords(){
       <div class="dots">${[0,1,2,3,4].map(k=>`<i class="${k<s?"on":""}"></i>`).join("")}</div></div>`; }).join("");
   });
   $("#main").innerHTML = topbar() + `<div class="pad">
+    <div class="mission" style="margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+        <div class="h1" style="font-size:20px;margin:0">♾️ ${t("endless")}</div>
+        <span class="muted" style="white-space:nowrap">🏅 ${S.endless.best}</span></div>
+      <p class="muted" style="margin:6px 0 12px">${t("endlessSub")}</p>
+      <div class="muted" style="margin-bottom:6px">${t("endRange")}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">${UNITS.map(u=>{ const on=S.endless.units.includes(u.id);
+        return `<button onclick="toggleEndUnit('${u.id}')" style="border:2px solid ${on?u.color:"var(--line)"};background:${on?u.color:"#fff"};color:${on?"#fff":"var(--ink2)"};border-radius:99px;padding:6px 12px;font-size:13px">${u.icon} ${esc(u.name[S.lang])}</button>`; }).join("")}</div>
+      <button class="btn" onclick="startEndless()">${t("endStart")}</button>
+    </div>
     <div class="h1">📖 ${t("words")}</div>
     <div class="seg">${["all","weak","learned"].map(f=>`<button class="${wordFilter===f?"on":""}" onclick="wordFilter='${f}';renderWords()">${t(f)}${f==="weak"?` (${weakN})`:""}</button>`).join("")}</div>
     <div style="margin-top:14px"><button class="btn ${weakN?"":""}" ${weakN?"":"disabled"} onclick="startLesson('weak')">💪 ${t("reviewWeak")}</button></div>
