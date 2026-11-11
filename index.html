@@ -207,7 +207,10 @@ const UNITS = [
       ["¿Hablas inglés?","Do you speak English?","英語を話せますか？"],
       ["Un poco","A little","少し"],
       ["¿Dónde está el baño?","Where is the bathroom?","トイレはどこですか？"],
-      ["No sé","I don't know","知らない"]
+      ["No sé","I don't know","知らない"],
+      ["¿Qué es esto?","What is this?","これは何ですか？"],
+      ["¿Me puedes ayudar?","Can you help me?","手伝ってくれる？"],
+      ["Tengo una pregunta","I have a question","質問があります"]
     ]},
   { id:"comida", color:"#FFC23C", dark:"#e09b00", icon:"🍽️",
     name:{ja:"レストラン・食べ物",en:"Food & Restaurant"},
@@ -223,6 +226,8 @@ const UNITS = [
       ["Está delicioso","It's delicious","おいしいです"],
       ["Tengo hambre","I'm hungry","お腹がすいた"],
       ["Tengo sed","I'm thirsty","のどが渇いた"],
+      ["el arroz","rice","ご飯・米"],["la carne","meat","肉"],["el pescado","fish (food)","魚（食べ物）"],
+      ["la leche","milk","牛乳"],["el vino","wine","ワイン"],["el queso","cheese","チーズ"],
       ["¡Buen provecho!","Enjoy your meal!","召し上がれ！"]
     ]},
   { id:"familia", color:"#9B5DE5", dark:"#7a3fc4", icon:"👨‍👩‍👧",
@@ -247,7 +252,9 @@ const UNITS = [
       ["uno","one (1)","1"],["dos","two (2)","2"],["tres","three (3)","3"],
       ["cuatro","four (4)","4"],["cinco","five (5)","5"],["seis","six (6)","6"],
       ["siete","seven (7)","7"],["ocho","eight (8)","8"],["nueve","nine (9)","9"],
-      ["diez","ten (10)","10"],["cien","one hundred (100)","100"],["mil","one thousand (1000)","1000"]
+      ["diez","ten (10)","10"],["once","eleven (11)","11"],["doce","twelve (12)","12"],
+      ["veinte","twenty (20)","20"],["treinta","thirty (30)","30"],["cincuenta","fifty (50)","50"],
+      ["cien","one hundred (100)","100"],["mil","one thousand (1000)","1000"]
     ]},
   { id:"verbos", color:"#EF4444", dark:"#bf2f2f", icon:"🏃",
     name:{ja:"毎日の動詞",en:"Everyday verbs"},
@@ -269,6 +276,92 @@ const UNITS = [
       ["¿Qué hora es?","What time is it?","今何時？"],
       ["Es la una","It's one o'clock","1時です"],
       ["Hasta mañana","See you tomorrow","また明日"]
+    ]},
+  { id:"colores", color:"#EC4899", dark:"#be2f78", icon:"🎨",
+    name:{ja:"色",en:"Colors"},
+    items:[
+      ["rojo","red","赤"],["azul","blue","青"],["verde","green","緑"],["amarillo","yellow","黄色"],
+      ["negro","black","黒"],["blanco","white","白"],["gris","gray","灰色"],["rosa","pink","ピンク"],
+      ["naranja","orange (color)","オレンジ色"],["marrón","brown","茶色"],["morado","purple","紫"],
+      ["Me gusta el azul","I like blue","私は青が好きです"]
+    ]},
+  { id:"cuerpo", color:"#F97316", dark:"#c2570c", icon:"🩺",
+    name:{ja:"体・健康",en:"Body & Health"},
+    items:[
+      ["la cabeza","head","頭"],["la mano","hand","手"],["el pie","foot","足"],["el ojo","eye","目"],
+      ["la boca","mouth","口"],["el pelo","hair","髪"],["el brazo","arm","腕"],["el corazón","heart","心臓・心"],
+      ["el médico","doctor","医者"],["la farmacia","pharmacy","薬局"],
+      ["Me duele la cabeza","I have a headache","頭が痛いです"],
+      ["Estoy enfermo","I'm sick","体調が悪いです"]
+    ]},
+  { id:"casa", color:"#65A30D", dark:"#4a7a08", icon:"🏠",
+    name:{ja:"家・もの",en:"Home & Things"},
+    items:[
+      ["la casa","house","家"],["la cama","bed","ベッド"],["la mesa","table","テーブル"],["la silla","chair","椅子"],
+      ["la puerta","door","ドア"],["la ventana","window","窓"],["la cocina","kitchen","台所"],["el teléfono","phone","電話"],
+      ["el libro","book","本"],["la llave","key","鍵"],["el coche","car","車"],
+      ["Mi casa es pequeña","My house is small","私の家は小さいです"]
+    ]},
+  { id:"compras", color:"#06B6D4", dark:"#0890a8", icon:"🛍️",
+    name:{ja:"買い物・服",en:"Shopping & Clothes"},
+    items:[
+      ["la tienda","store","店"],["el dinero","money","お金"],["barato","cheap","安い"],["caro","expensive","（値段が）高い"],
+      ["la camisa","shirt","シャツ"],["los zapatos","shoes","靴"],["el vestido","dress","ワンピース・ドレス"],["la talla","size (clothes)","（服の）サイズ"],
+      ["la bolsa","bag","袋・バッグ"],
+      ["¿Puedo pagar con tarjeta?","Can I pay by card?","カードで払えますか？"],
+      ["Es demasiado caro","It's too expensive","高すぎます"],
+      ["Solo estoy mirando","I'm just looking","見ているだけです"]
+    ]},
+  { id:"viaje", color:"#6366F1", dark:"#4547c9", icon:"✈️",
+    name:{ja:"旅行・道案内",en:"Travel & Directions"},
+    items:[
+      ["el aeropuerto","airport","空港"],["la estación","station","駅"],["el hotel","hotel","ホテル"],["el billete","ticket","切符・チケット"],
+      ["la calle","street","通り"],["a la derecha","to the right","右に"],["a la izquierda","to the left","左に"],["todo recto","straight ahead","まっすぐ"],
+      ["cerca","near","近く"],["lejos","far","遠く"],
+      ["¿Dónde está la estación?","Where is the station?","駅はどこですか？"],
+      ["Quiero ir a Madrid","I want to go to Madrid","マドリードに行きたいです"]
+    ]},
+  { id:"sentir", color:"#F43F5E", dark:"#c42744", icon:"😊",
+    name:{ja:"気持ち・形容詞",en:"Feelings & Adjectives"},
+    items:[
+      ["feliz","happy","幸せな"],["triste","sad","悲しい"],["cansado","tired","疲れた"],["enojado","angry","怒った"],
+      ["nervioso","nervous","緊張した"],["contento","glad","うれしい"],["grande","big","大きい"],["pequeño","small","小さい"],
+      ["bonito","pretty","きれいな"],["nuevo","new","新しい"],["viejo","old","古い・年をとった"],
+      ["Estoy muy feliz","I'm very happy","とても幸せです"]
+    ]},
+  { id:"semana", color:"#A855F7", dark:"#8236c9", icon:"📅",
+    name:{ja:"曜日・月",en:"Days & Months"},
+    items:[
+      ["lunes","Monday","月曜日"],["martes","Tuesday","火曜日"],["miércoles","Wednesday","水曜日"],["jueves","Thursday","木曜日"],
+      ["viernes","Friday","金曜日"],["sábado","Saturday","土曜日"],["domingo","Sunday","日曜日"],["la semana","week","週"],
+      ["el mes","month","（暦の）月"],["el año","year","年"],["enero","January","1月"],
+      ["Hoy es lunes","Today is Monday","今日は月曜日です"]
+    ]},
+  { id:"animales", color:"#D97706", dark:"#a85c05", icon:"🐶",
+    name:{ja:"動物",en:"Animals"},
+    items:[
+      ["el perro","dog","犬"],["el gato","cat","猫"],["el pájaro","bird","鳥"],["el pez","fish (animal)","魚（生き物）"],
+      ["el caballo","horse","馬"],["la vaca","cow","牛"],["el cerdo","pig","豚"],["el ratón","mouse","ネズミ"],
+      ["el oso","bear","熊"],["el conejo","rabbit","ウサギ"],
+      ["Tengo un perro","I have a dog","犬を飼っています"],
+      ["El gato duerme","The cat is sleeping","猫が寝ています"]
+    ]},
+  { id:"verbos2", color:"#10B981", dark:"#0b8a60", icon:"🔁",
+    name:{ja:"もっと動詞",en:"More verbs"},
+    items:[
+      ["hacer","to do / to make","する・作る"],["poder","can / to be able to","できる"],["saber","to know (a fact)","知っている"],["ver","to see / to watch","見る"],
+      ["venir","to come","来る"],["salir","to go out / to leave","出かける・出る"],["leer","to read","読む"],["escribir","to write","書く"],
+      ["escuchar","to listen","聞く"],["comprar","to buy","買う"],["pagar","to pay","払う"],
+      ["¿Puedo entrar?","Can I come in?","入ってもいいですか？"]
+    ]},
+  { id:"trabajo", color:"#64748B", dark:"#475467", icon:"💼",
+    name:{ja:"仕事・学校",en:"Work & School"},
+    items:[
+      ["el trabajo","work / job","仕事"],["la oficina","office","オフィス"],["la reunión","meeting","会議"],["el jefe","boss","上司"],
+      ["el compañero","coworker / classmate","同僚・仲間"],["la escuela","school","学校"],["el profesor","teacher","先生"],["el estudiante","student","学生"],
+      ["la pregunta","question","質問"],["la respuesta","answer","答え"],
+      ["Tengo una reunión","I have a meeting","会議があります"],
+      ["Trabajo en una oficina","I work in an office","オフィスで働いています"]
     ]}
 ].map(u=>({...u, items:u.items.map(([es,en,ja])=>({es,en,ja,unit:u.id}))}));
 
@@ -331,7 +424,7 @@ const T = {
     speak:"発音を聞く", tapToHear:"タップで発音",
     endless:"無限単語テスト", endlessSub:"終わりなく出題。苦手な単語ほどよく出ます。ハートは減りません。",
     endStart:"テスト開始", endRange:"出題範囲", endBest:"自己ベスト", endCorrect:"正解数", endCombo:"最大コンボ",
-    endFinish:"テスト終了", endNew:"自己ベスト更新！", endAnswered:"回答数", endPickOne:"範囲を1つ以上選んでください", combo:"コンボ", nextQ:"次へ", listenOff:"30分間リスニング問題はお休みします"
+    endFinish:"テスト終了", endNew:"自己ベスト更新！", endAnswered:"回答数", endPickOne:"範囲を1つ以上選んでください", combo:"コンボ", nextQ:"次へ", listenOff:"30分間リスニング問題はお休みします", selAll:"すべて選択", selNone:"すべて解除"
   },
   en:{
     learn:"Learn", practice:"Words", roulette:"Roulette", quests:"Quests", profile:"Profile",
@@ -360,7 +453,7 @@ const T = {
     speak:"Listen", tapToHear:"Tap to hear",
     endless:"Endless word test", endlessSub:"Questions never stop. Weak words come up more often. No hearts lost.",
     endStart:"Start test", endRange:"Topics", endBest:"Personal best", endCorrect:"Correct", endCombo:"Best combo",
-    endFinish:"Test finished", endNew:"New personal best!", endAnswered:"Answered", endPickOne:"Pick at least one topic", combo:"combo", nextQ:"Next", listenOff:"No listening questions for 30 minutes"
+    endFinish:"Test finished", endNew:"New personal best!", endAnswered:"Answered", endPickOne:"Pick at least one topic", combo:"combo", nextQ:"Next", listenOff:"No listening questions for 30 minutes", selAll:"Select all", selNone:"Clear all"
   }
 };
 const t = k => T[S.lang][k] ?? k;
@@ -382,7 +475,10 @@ function rollDay(){
   if (S.lastActive && dayDiff(S.lastActive, today()) > 1) S.streak = 0;
   save();
 }
-if (!S.endless) S.endless = {best:0, bestCombo:0, units:UNITS.map(u=>u.id)};
+if (!S.endless) S.endless = {best:0, bestCombo:0, units:UNITS.map(u=>u.id), known:UNITS.map(u=>u.id)};
+// Units added in later versions get switched on in the endless test automatically.
+if (!S.endless.known) S.endless.known = ["saludos","basicos","comida","familia","numeros","verbos","tiempo"];
+UNITS.forEach(u=>{ if(!S.endless.known.includes(u.id)){ S.endless.known.push(u.id); if(!S.endless.units.includes(u.id)) S.endless.units.push(u.id); } });
 rollDay();
 function markActive(){ // returns true if streak advanced today
   const td = today();
@@ -547,9 +643,29 @@ function startEndless(){
   L.queue.push(nextEndlessQ());
   go("lesson");
 }
+// Spaced repetition: each correct answer in a row pushes the word further away
+// (5 min, 15 min, 45 min, ~2 h, ~7 h, ...). A wrong answer brings it right back.
+function correctRun(es){
+  const w = S.words[es];
+  if (!w || (w.c + w.w) === 0) return -1;            // never answered
+  if (w.s === undefined) return (w.w > 0 && strength(es) < 3) ? 0 : Math.min(w.c, 3);
+  return w.s;
+}
+function endlessWeight(item){
+  if (item.es === L.lastEs) return 0;
+  const run = correctRun(item.es);
+  if (run < 0) return 4;                             // new word
+  if (run === 0) return 10;                          // last answer was wrong
+  const interval = 5*60e3 * Math.pow(3, run-1);
+  const due = Date.now() - (S.words[item.es].t || 0) >= interval;
+  return due ? 3 : 0.25 / run;                       // not due yet: rarely shown
+}
 function pickEndless(){
+  // Some questions go to words you got wrong last time (including past sessions).
+  const missed = L.pool.filter(i=>i.es!==L.lastEs && correctRun(i.es)===0);
+  if (missed.length && Math.random() < 0.15) return missed[Math.floor(Math.random()*missed.length)];
   let tot = 0;
-  const ws = L.pool.map(i=>{ const w = i.es===L.lastEs ? 0 : 1 + (5-strength(i.es))*0.8 + (isWeak(i.es)?3:0); tot+=w; return w; });
+  const ws = L.pool.map(i=>{ const w = endlessWeight(i); tot+=w; return w; });
   let r = Math.random()*tot;
   for (let k=0;k<L.pool.length;k++){ r-=ws[k]; if(r<=0) return L.pool[k]; }
   return L.pool[0];
@@ -585,6 +701,10 @@ function renderEndResult(){
     <div style="width:100%;display:grid;gap:12px;margin-top:8px">
       <button class="btn" onclick="startEndless()">${t("retry")}</button>
       <button class="btn ghost" onclick="${v.advanced?"go('streak')":"go(S.tab)"}">${t("home")}</button></div></div>`;
+}
+function toggleAllEnd(){
+  S.endless.units = S.endless.units.length===UNITS.length ? [] : UNITS.map(u=>u.id);
+  save(); renderWords();
 }
 function toggleEndUnit(id){
   const u = S.endless.units, i = u.indexOf(id);
@@ -669,6 +789,8 @@ function check(){
   else if (q.type==="type") ok = norm(L.sel) === norm(q.item.es) || norm(L.sel) === norm(q.item.es.replace(/^(el|la|los|las) /i,""));
   else ok = q.opts[L.sel] === q.item;
   const w = wstat(q.item.es);
+  w.s = ok ? correctRun(q.item.es) < 0 ? 1 : correctRun(q.item.es) + 1 : 0;
+  w.t = Date.now();
   L.answered++;
   if (ok){ w.c++; L.correctN++; S.daily.correct++; L.state="right"; speak(q.item.es); L.combo=(L.combo||0)+1; L.maxCombo=Math.max(L.maxCombo||0,L.combo); }
   else { w.w++; L.mistakes++; if(!L.endless) S.hearts=Math.max(0,S.hearts-1); L.state="wrong"; L.combo=0; }
@@ -680,7 +802,7 @@ function next(){
   if (L.endless){
     clearTimeout(L.autoT);
     const q = L.queue.shift();
-    if (L.state==="wrong") L.retry.push({item:q.item, due:L.answered+2});
+    if (L.state==="wrong") L.retry.push({item:q.item, due:L.answered+3});
     L.sel=null; L.state="ask";
     L.queue.push(nextEndlessQ());
     renderLesson(); return;
@@ -881,7 +1003,8 @@ function renderWords(){
         <div class="h1" style="font-size:20px;margin:0">♾️ ${t("endless")}</div>
         <span class="muted" style="white-space:nowrap">🏅 ${S.endless.best}</span></div>
       <p class="muted" style="margin:6px 0 12px">${t("endlessSub")}</p>
-      <div class="muted" style="margin-bottom:6px">${t("endRange")}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><span class="muted">${t("endRange")} (${S.endless.units.length}/${UNITS.length})</span>
+        <button onclick="toggleAllEnd()" style="color:var(--blue);font-size:13px">${S.endless.units.length===UNITS.length?t("selNone"):t("selAll")}</button></div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">${UNITS.map(u=>{ const on=S.endless.units.includes(u.id);
         return `<button onclick="toggleEndUnit('${u.id}')" style="border:2px solid ${on?u.color:"var(--line)"};background:${on?u.color:"#fff"};color:${on?"#fff":"var(--ink2)"};border-radius:99px;padding:6px 12px;font-size:13px">${u.icon} ${esc(u.name[S.lang])}</button>`; }).join("")}</div>
       <button class="btn" onclick="startEndless()">${t("endStart")}</button>
