@@ -1,6 +1,6 @@
 // Offline support: app files are cached; bump VERSION when you change index.html.
-const VERSION = "hablemos-v5";
-const APP_FILES = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
+const VERSION = "hablemos-v6";
+const APP_FILES = ["./", "./index.html", "./words.js", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(APP_FILES)).then(() => self.skipWaiting()));
