@@ -173,6 +173,7 @@ nav button.on{border-color:#b8d8ff;background:#eef6ff;color:var(--blue)}
 </div>
 
 <script src="words.js"></script>
+<script src="study.js"></script>
 <script>
 /* ============ DATA ============ */
 // Each item: es (Spanish), en/ja meaning
@@ -461,6 +462,8 @@ const T = {
     endFinish:"Test finished", endNew:"New personal best!", endAnswered:"Answered", endPickOne:"Pick at least one topic", combo:"combo", nextQ:"Next", listenOff:"No listening questions for 30 minutes", selAll:"Select all", selNone:"Clear all"
   }
 };
+if (window.STUDY_T){ Object.assign(T.ja, STUDY_T.ja); Object.assign(T.en, STUDY_T.en); }
+T.ja.q1 = "今日の学習を完了する"; T.en.q1 = "Finish today's study"; T.ja.practice = "練習"; T.en.practice = "Practice";
 const t = k => T[S.lang][k] ?? k;
 const mean = it => it[S.lang];
 
@@ -468,9 +471,10 @@ const mean = it => it[S.lang];
 const KEY = "hablemos.v1";
 const today = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
 const dayDiff = (a,b) => Math.round((new Date(b+"T00:00")-new Date(a+"T00:00"))/864e5);
-function freshDaily(){ return {date:today(), lessons:0, perfect:0, correct:0, spun:false, word:null, cleared:false, claimed:[], wheel:null}; }
+function freshDaily(){ return {date:today(), lessons:0, perfect:0, correct:0, spun:false, word:null, cleared:false, claimed:[], wheel:null, newDone:0, studyDone:false}; }
 function defaultState(){
-  return {lang:(navigator.language||"ja").startsWith("ja")?"ja":"en", xp:0, gems:50, hearts:5, streak:0, lastActive:null, activeDays:[], done:{}, words:{}, daily:freshDaily(), log:[], tab:"learn"};
+  return {lang:(navigator.language||"ja").startsWith("ja")?"ja":"en", xp:0, gems:50, hearts:5, streak:0, lastActive:null, activeDays:[], done:{}, words:{}, daily:freshDaily(), log:[], tab:"learn",
+          srs:{}, settings:{newPerDay:10}, studyMs:0, conj:{}, conjW:{}, shadow:0};
 }
 let S;
 try { S = Object.assign(defaultState(), JSON.parse(localStorage.getItem(KEY)||"{}")); } catch(e){ S = defaultState(); }
@@ -547,11 +551,11 @@ function render(){
   rollDay();
   document.documentElement.lang = S.lang;
   const m = $("#main"), nav = $("#nav");
-  const full = ["lesson","result","fail","streak","endres"].includes(view.name);
+  const full = ["lesson","result","fail","streak","endres", ...(window.EXTRA_FULL||[])].includes(view.name);
   nav.style.display = full ? "none" : "flex";
   m.scrollTop = 0;
-  ({learn:renderLearn, words:renderWords, roulette:renderRoulette, quests:renderQuests, profile:renderProfile,
-    lesson:renderLesson, result:renderResult, endres:renderEndResult, fail:renderFail, streak:renderStreak})[view.name]();
+  Object.assign({learn:renderLearn, words:renderWords, roulette:renderRoulette, quests:renderQuests, profile:renderProfile,
+    lesson:renderLesson, result:renderResult, endres:renderEndResult, fail:renderFail, streak:renderStreak}, window.EXTRA_VIEWS||{})[view.name]();
   if(!full){
     const tabs=[["learn","🏠"],["words","📖"],["roulette","🎡"],["quests","🏆"],["profile","👤"]];
     nav.innerHTML = tabs.map(([k,ic])=>`<button class="${view.name===k?"on":""}" onclick="go('${k}')"><span class="ic">${ic}</span>${t(k==="words"?"practice":k)}</button>`).join("");
@@ -575,7 +579,7 @@ function lessonsOf(u){
   return out;
 }
 function renderLearn(){
-  let html = topbar(), firstOpen = null, prevDone = true;
+  let html = topbar() + studyCardHtml(), firstOpen = null, prevDone = true;
   UNITS.forEach((u,ui)=>{
     html += `<div class="unit-banner" style="background:${u.color}"><div><small>${t("unit")} ${ui+1}</small><b>${u.icon} ${esc(u.name[S.lang])}</b></div><div class="book">📒</div></div><div class="path">`;
     lessonsOf(u).forEach((l,li)=>{
@@ -593,7 +597,7 @@ function renderLearn(){
   });
   $("#main").innerHTML = html + `<div style="height:20px"></div>`;
   const tip = document.querySelector(".start-tip"), m = $("#main");
-  if (tip){ const y = tip.parentElement.offsetTop; m.scrollTop = y > m.clientHeight*0.7 ? y - m.clientHeight/2 : 0; }
+  if (tip){ const y = tip.parentElement.offsetTop; m.scrollTop = y > m.clientHeight*1.2 ? y - m.clientHeight/2 : 0; }
 }
 
 /* ============ LESSON ENGINE ============ */
@@ -618,6 +622,11 @@ function makeQuestion(item, idx, noType){
   if (strength(item.es) >= 2 && !noType) types.push("type");
   let type = types[(idx + Math.floor(Math.random()*types.length)) % types.length];
   if (idx===0) type = "es2m"; // gentle start
+  return makeQ(item, type);
+}
+function makeQ(item, type){
+  if (type==="build" && words(item.es).length < 2) type = "m2es";
+  if (type==="listen" && (!canSpeak || listenPaused())) type = "m2es";
   const q = {type, item};
   if (type==="es2m") q.opts = shuffle([item, ...distractors(item,3,i=>mean(i))]);
   if (type==="m2es" || type==="listen") q.opts = shuffle([item, ...distractors(item,3,i=>i.es)]);
@@ -636,7 +645,7 @@ function startLesson(key){
   const pool = shuffle(les.items).slice(0, Math.min(10, les.items.length));
   // pad to at least 6 questions
   while(pool.length < 6) pool.push(les.items[Math.floor(Math.random()*les.items.length)]);
-  L = {key, label:les.label, queue: pool.map((it,i)=>makeQuestion(it,i)), total: pool.length, doneCount:0, mistakes:0, answered:0, correctN:0, sel:null, state:"ask"};
+  L = {key, label:les.label, queue: pool.map((it,i)=>makeQuestion(it,i)), total: pool.length, doneCount:0, mistakes:0, answered:0, correctN:0, sel:null, state:"ask", start:Date.now()};
   go("lesson");
 }
 
@@ -644,8 +653,8 @@ function startLesson(key){
 function startEndless(){
   const pool = ALL_ITEMS.filter(i=>S.endless.units.includes(i.unit));
   if (!pool.length){ toast(t("endPickOne")); return; }
-  L = {endless:true, key:"endless", label:t("endless"), pool, queue:[], retry:[], lastEs:null,
-       doneCount:0, mistakes:0, answered:0, correctN:0, combo:0, maxCombo:0, sel:null, state:"ask"};
+  L = {endless:true, auto:true, key:"endless", label:t("endless"), pool, queue:[], retry:[], lastEs:null,
+       doneCount:0, mistakes:0, answered:0, correctN:0, combo:0, maxCombo:0, sel:null, state:"ask", start:Date.now()};
   L.queue.push(nextEndlessQ());
   go("lesson");
 }
@@ -687,7 +696,7 @@ function finishEndless(){
   v.newBest = v.correct > S.endless.best;
   if (v.newBest) S.endless.best = v.correct;
   S.endless.bestCombo = Math.max(S.endless.bestCombo, v.combo);
-  S.gems += v.gems; S.xp += v.correct;
+  S.gems += v.gems; S.xp += v.correct; addTime(L.start);
   v.advanced = L.correctN >= 10 ? markActive() : false;
   checkQuests(); save();
   view = Object.assign({name:"endres"}, v); render();
@@ -722,7 +731,17 @@ function renderLesson(){
   const pct = Math.round(L.doneCount / L.total * 100);
   let body = "";
   const tKey = {es2m:"q_es2m", m2es:"q_m2es", listen:"q_listen", build:"q_build", type:"q_type"}[q.type];
-  if (q.type==="es2m"){
+  const sayJs = s => esc(s).replace(/'/g,"\\'");
+  if (q.type==="intro"){
+    const u = UNITS.find(x=>x.id===q.item.unit);
+    body = `<div class="qtitle">🆕 ${t("newWord")}</div>
+      <div class="card" style="text-align:center;padding:26px 16px">
+        <div class="muted">${u.icon} ${esc(u.name[S.lang])}</div>
+        <div style="font-size:32px;font-weight:900;color:var(--pri);margin:10px 0 14px">${esc(q.item.es)}</div>
+        <button class="spk" onclick="speak('${sayJs(q.item.es)}')">🔊</button><button class="spk" style="background:var(--teal);box-shadow:0 3px 0 var(--teal-d)" onclick="speak('${sayJs(q.item.es)}',true)">🐢</button>
+        <div style="font-size:20px;margin-top:14px">${esc(mean(q.item))}</div>
+        <p class="muted" style="margin:14px 0 0">🗣️ ${t("introTip")}</p></div>`;
+  } else if (q.type==="es2m"){
     body = `<div class="qtitle">${t(tKey)}</div>
       <div class="prompt">${mascot(64)}<div class="bubble"><button class="spk" onclick="speak('${esc(q.item.es).replace(/'/g,"\\'")}')">🔊</button>${esc(q.item.es)}</div></div>
       <div class="choices">${q.opts.map((o,i)=>`<button class="choice ${choiceCls(q,i)}" onclick="pick(${i})">${esc(mean(o))}</button>`).join("")}</div>`;
@@ -743,27 +762,33 @@ function renderLesson(){
   } else if (q.type==="type"){
     body = `<div class="qtitle">${t(tKey)}</div>
       <div class="prompt">${mascot(64)}<div class="bubble">${esc(mean(q.item))}</div></div>
-      <textarea id="typein" class="typein" placeholder="${t("typeHere")}" oninput="L.sel=this.value;updateCheck()" ${L.state!=="ask"?"disabled":""}>${esc(L.sel||"")}</textarea>
+      <textarea id="typein" class="typein" placeholder="${t("typeHere")}" oninput="L.sel=this.value;updateCheck()" onkeydown="if(event.key==='Enter'){event.preventDefault();check()}" ${L.state!=="ask"?"disabled":""}>${esc(L.sel||"")}</textarea>
       <div class="accents">${["á","é","í","ó","ú","ñ","ü","¿","¡"].map(a=>`<button onclick="addAccent('${a}')">${a}</button>`).join("")}</div>`;
   }
   let foot;
-  if (L.state==="ask"){
-    const skip = q.type==="listen" ? `<button class="btn ghost" ${L.endless?"":`style="margin-bottom:12px"`} onclick="skipListen()">${t("skipListen")}</button>` : "";
-    foot = L.endless
-      ? (skip ? `<div class="lfoot">${skip}</div>` : "")
-      : `<div class="lfoot">${skip}<button class="btn ok" id="checkBtn" onclick="check()" ${hasAnswer()?"":"disabled"}>${t("check")}</button></div>`;
+  if (q.type==="intro"){
+    foot = `<div class="lfoot"><button class="btn blue" onclick="next()">${t("gotIt")}</button></div>`;
+  } else if (L.state==="ask"){
+    const skip = q.type==="listen" ? `<button class="btn ghost" ${L.auto?"":`style="margin-bottom:12px"`} onclick="skipListen()">${t("skipListen")}</button>` : "";
+    const checkBtn = `<button class="btn ok" id="checkBtn" onclick="check()" ${hasAnswer()?"":"disabled"}>${t("check")}</button>`;
+    foot = L.auto
+      ? (skip ? `<div class="lfoot">${skip}</div>` : q.type==="type" ? `<div class="lfoot">${checkBtn}</div>` : "")
+      : `<div class="lfoot">${skip}${checkBtn}</div>`;
   } else {
     const ok = L.state==="right";
     foot = `<div class="sheet ${ok?"ok":"ng"}"><h3>${ok?"✅ "+t("correct"):"❌ "+t("wrong")}</h3>
       <p>${ok?"":`<b>${t("answer")}</b>${esc(q.item.es)}<br>`}<b>${t("meaning")}</b>${esc(q.item.es)} = ${esc(mean(q.item))}</p>
-      <button class="btn ${ok?"ok":"ng"}" onclick="next()">${L.endless?t("nextQ"):t("cont")}</button></div>`;
+      <button class="btn ${ok?"ok":"ng"}" onclick="next()">${L.auto?t("nextQ"):t("cont")}</button></div>`;
   }
   $("#main").innerHTML = `<div class="lesson">
-    ${L.endless
+    ${L.srs
+      ? `<div class="lhead"><button class="x" onclick="quitLesson()" aria-label="close">✕</button><div class="bar"><i style="width:${pct}%"></i></div><span class="stat" style="color:var(--purple)">🧠 ${L.queue.length}</span></div>`
+      : L.endless
       ? `<div class="lhead"><button class="x" onclick="quitLesson()" aria-label="close">✕</button><div style="flex:1;display:flex;gap:16px;font-weight:900;font-size:16px"><span style="color:var(--ok)">✅ ${L.correctN}</span><span style="color:var(--ink2)">/ ${L.answered}</span></div><span class="stat" style="color:${L.combo>=3?"var(--pri)":"var(--ink2)"}">🔥 ${L.combo} ${t("combo")}</span></div>`
       : `<div class="lhead"><button class="x" onclick="quitLesson()" aria-label="close">✕</button><div class="bar"><i style="width:${pct}%"></i></div><span class="hearts">❤️ ${S.hearts}</span></div>`}
-    <div class="qbody"><div class="qtype">${q.type==="build"||q.type==="type"?"✍️":(L.endless?"♾️":"⭐")} ${esc(L.label)}</div>${body}</div>
+    <div class="qbody"><div class="qtype">${q.type==="build"||q.type==="type"?"✍️":(L.srs?"📅":L.endless?"♾️":"⭐")} ${esc(L.label)}</div>${body}</div>
     ${foot}</div>`;
+  if (q.type==="intro" && !q.played){ q.played=true; setTimeout(()=>speak(q.item.es),300); }
   if (q.type==="listen" && L.state==="ask" && !q.played){ q.played=true; setTimeout(()=>speak(q.item.es),300); }
   if (q.type==="type" && L.state==="ask"){ const ta=$("#typein"); ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length); }
 }
@@ -775,9 +800,9 @@ function choiceCls(q,i){
 }
 function hasAnswer(){ const q=L.queue[0]; if(q.type==="build") return q.picked.length>0; if(q.type==="type") return !!(L.sel&&L.sel.trim()); return L.sel!==null; }
 function updateCheck(){ const b=$("#checkBtn"); if(b) b.disabled=!hasAnswer(); }
-function pick(i){ if(L.state!=="ask") return; L.sel=i; const q=L.queue[0]; if(L.endless){ check(); return; } if(q.type!=="es2m") speak(q.opts[i].es); renderLesson(); }
+function pick(i){ if(L.state!=="ask") return; L.sel=i; const q=L.queue[0]; if(L.auto){ check(); return; } if(q.type!=="es2m") speak(q.opts[i].es); renderLesson(); }
 function pickTile(i){ const q=L.queue[0]; if(L.state!=="ask"||q.tiles[i].used) return; q.tiles[i].used=true; q.picked.push(i);
-  if (L.endless && q.picked.length===words(q.item.es).length){ check(); return; }
+  if (L.auto && q.picked.length===words(q.item.es).length){ check(); return; }
   speak(q.tiles[i].w); renderLesson(); }
 function unpickTile(k){ const q=L.queue[0]; if(L.state!=="ask") return; const ti=q.picked.splice(k,1)[0]; q.tiles[ti].used=false; renderLesson(); }
 function addAccent(a){ const ta=$("#typein"); const s=ta.selectionStart, e=ta.selectionEnd; ta.value=ta.value.slice(0,s)+a+ta.value.slice(e); ta.selectionStart=ta.selectionEnd=s+a.length; L.sel=ta.value; ta.focus(); updateCheck(); }
@@ -789,8 +814,9 @@ function skipListen(){
   L.sel=null; renderLesson(); toast("🔇 "+t("listenOff"));
 }
 function check(){
-  if (!hasAnswer()) return;
+  if (L.state!=="ask" || !hasAnswer()) return;
   const q = L.queue[0]; let ok;
+  if (q.type==="intro") return;
   if (q.type==="build") ok = norm(q.picked.map(i=>q.tiles[i].w).join(" ")) === norm(q.item.es);
   else if (q.type==="type") ok = norm(L.sel) === norm(q.item.es) || norm(L.sel) === norm(q.item.es.replace(/^(el|la|los|las) /i,""));
   else ok = q.opts[L.sel] === q.item;
@@ -799,12 +825,14 @@ function check(){
   w.t = Date.now();
   L.answered++;
   if (ok){ w.c++; L.correctN++; S.daily.correct++; L.state="right"; speak(q.item.es); L.combo=(L.combo||0)+1; L.maxCombo=Math.max(L.maxCombo||0,L.combo); }
-  else { w.w++; L.mistakes++; if(!L.endless) S.hearts=Math.max(0,S.hearts-1); L.state="wrong"; L.combo=0; }
-  if (L.endless) checkQuests();
+  else { w.w++; L.mistakes++; if(!L.auto) S.hearts=Math.max(0,S.hearts-1); L.state="wrong"; L.combo=0; }
+  if (L.srs) srsGrade(q.item, ok);
+  if (L.auto) checkQuests();
   save(); renderLesson();
-  if (L.endless && ok){ clearTimeout(L.autoT); L.autoT = setTimeout(()=>{ if(view.name==="lesson" && L.state==="right") next(); }, 900); }
+  if (L.auto && ok){ clearTimeout(L.autoT); L.autoT = setTimeout(()=>{ if(view.name==="lesson" && L.state==="right") next(); }, 900); }
 }
 function next(){
+  if (L.srs) return srsNext();
   if (L.endless){
     clearTimeout(L.autoT);
     const q = L.queue.shift();
@@ -825,6 +853,7 @@ function quitLesson(){
   try{ speechSynthesis.cancel(); }catch(e){}
   if (L) clearTimeout(L.autoT);
   if (L && L.endless && L.answered>0){ finishEndless(); return; }
+  if (L && L.srs && L.answered>0){ addTime(L.start); save(); go("learn"); return; }
   go(S.tab);
 }
 function finishLesson(){
@@ -834,6 +863,7 @@ function finishLesson(){
   S.xp += xp; S.gems += gems;
   if (L.key!=="weak") S.done[L.key] = Math.max(S.done[L.key]||0, perfect?3:1);
   S.daily.lessons++; if(perfect) S.daily.perfect++;
+  addTime(L.start);
   const advanced = markActive();
   checkQuests();
   save();
@@ -882,7 +912,7 @@ function renderStreak(){
 
 /* ============ QUESTS ============ */
 const QUESTS = [
-  {id:"q1", icon:"📗", goal:2, val:()=>S.daily.lessons},
+  {id:"q1", icon:"📅", goal:1, val:()=>S.daily.studyDone?1:0},
   {id:"q2", icon:"🎯", goal:1, val:()=>S.daily.perfect},
   {id:"q3", icon:"🎡", goal:1, val:()=>S.daily.cleared?1:0},
   {id:"q4", icon:"⚡", goal:15, val:()=>S.daily.correct}
@@ -1004,6 +1034,7 @@ function renderWords(){
       <div class="dots">${[0,1,2,3,4].map(k=>`<i class="${k<s?"on":""}"></i>`).join("")}</div></div>`; }).join("");
   });
   $("#main").innerHTML = topbar() + `<div class="pad">
+    ${practiceCardsHtml()}
     <div class="mission" style="margin-bottom:20px">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
         <div class="h1" style="font-size:20px;margin:0">♾️ ${t("endless")}</div>
@@ -1028,6 +1059,8 @@ function renderProfile(){
     <div style="display:flex;align-items:center;gap:14px">${mascot(80)}<div><div class="h1" style="margin:0">¡Hola!</div><span class="muted">🇪🇸 Español</span></div></div>
     <div class="h1" style="font-size:18px;margin-top:20px">${t("lang")}</div>
     <div class="seg"><button class="${S.lang==="ja"?"on":""}" onclick="setLang('ja')">🇯🇵 日本語</button><button class="${S.lang==="en"?"on":""}" onclick="setLang('en')">🇺🇸 English</button></div>
+    ${roadmapHtml()}
+    ${newPerDayHtml()}
     <div class="h1" style="font-size:18px;margin-top:20px">${t("stats")}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
       <div class="card">🔥 <b>${S.streak}</b><div class="muted">${S.lang==="ja"?"日連続":"day streak"}</div></div>
