@@ -28,7 +28,7 @@ window.STUDY_T = {
     lvA1:"A1 入門：あいさつ・自己紹介・買い物ができる", lvA2:"A2 初級：過去や予定について簡単に話せる", lvB1:"B1 中級：旅行や日常の大半を自分の言葉で話せる",
     guideTitle:"効果的な勉強のやり方", guideOpen:"勉強法を見る",
     g1t:"毎日の復習（間隔反復）", g1:"忘れかけた頃に思い出すと、記憶に長く残ります。正解するたびに次の復習が1日→3日→7日→14日…と延びます。毎日「今日の学習」を開くだけでOK。",
-    g2t:"見るより「思い出す」", g2:"答えを見て覚えるより、自分で思い出すほうが定着します。覚えた単語ほど「選ぶ」→「並べる」→「書く」と難しい問題になります。",
+    g2t:"見るより「思い出す」", g2:"答えを見て覚えるより、自分で思い出すほうが定着します。覚えた単語ほど「意味を選ぶ」→「スペイン語を選ぶ」→「並べる」と難しい問題になります。",
     g3t:"よく使う順に覚える", g3:"新しい単語は、使う頻度が高いもの（代名詞・基本動詞・あいさつ）から順に出ます。上位1,000語で日常会話の約8割をカバーできます。",
     g4t:"動詞の活用を固める", g4:"B1では現在・点過去・線過去・現在完了・未来・過去未来・接続法現在を使います。活用ドリルで1つずつ固めましょう。",
     g5t:"シャドーイング", g5:"音声を聞きながら少し遅れて真似して言う練習です。リスニングとフレーズの記憶に効果があると報告されています。1日5分でも続けましょう。",
@@ -57,7 +57,7 @@ window.STUDY_T = {
     lvA1:"A1 Beginner: greetings, introductions, shopping", lvA2:"A2 Elementary: talk simply about the past and plans", lvB1:"B1 Intermediate: handle travel and most everyday talk in your own words",
     guideTitle:"How to study effectively", guideOpen:"See study method",
     g1t:"Daily review (spaced repetition)", g1:"Recalling a word just as you're about to forget it makes memory last. Each correct answer pushes the next review further: 1 → 3 → 7 → 14 days… Just open Today's study every day.",
-    g2t:"Recall, don't just reread", g2:"Pulling an answer from memory works better than looking at it. The better you know a word, the harder its question gets: choose → arrange → type.",
+    g2t:"Recall, don't just reread", g2:"Pulling an answer from memory works better than looking at it. The better you know a word, the harder its question gets: pick the meaning → pick the Spanish → arrange the words.",
     g3t:"Learn the most frequent words first", g3:"New words come in order of usefulness: pronouns, core verbs, greetings. The top 1,000 words cover about 80% of everyday conversation.",
     g4t:"Nail the verb tenses", g4:"B1 uses the present, preterite, imperfect, present perfect, future, conditional and present subjunctive. Practice them one at a time in the conjugation drill.",
     g5t:"Shadowing", g5:"Repeat the audio aloud a split second behind the speaker. Studies report gains in listening and in remembering phrases. Even 5 minutes a day helps.",
@@ -112,7 +112,8 @@ function srsType(item, b){
   if (b <= 1) return listen && r < 0.35 ? "listen" : "es2m";
   if (b === 2) return listen && r < 0.3 ? "listen" : "m2es";
   if (b === 3) return multi && r < 0.6 ? "build" : "m2es";
-  return r < 0.6 ? "type" : (multi ? "build" : "m2es");
+  // Well-known words: hardest non-typing forms (arrange the sentence, or pick the Spanish).
+  return multi && r < 0.7 ? "build" : (listen && r < 0.85 ? "listen" : "m2es");
 }
 function startStudy(extraNew){
   srsSeed();
