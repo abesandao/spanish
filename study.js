@@ -320,7 +320,7 @@ function cjPick(){
   const persons = [0,1,2,3,4,5].filter(p=>s.vos || p!==4);
   const person = persons[Math.floor(Math.random()*persons.length)];
   const forms = conj(verb, tense), ans = forms[person];
-  const typeMode = (S.conj[tense]?.c || 0) >= 8 && Math.random() < 0.4;
+  const typeMode = false; // typing questions turned off: always multiple choice
   const pool = new Set([ans]);
   shuffle(forms.filter((f,i)=>i!==person && (s.vos || i!==4))).forEach(f=>pool.add(f));
   shuffle(TENSES.map(x=>x.id).filter(x=>x!==tense)).forEach(tn=>pool.add(conj(verb, tn)[person]));
