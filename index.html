@@ -619,7 +619,6 @@ function makeQuestion(item, idx, noType){
   const types = ["es2m","m2es"];
   if (canSpeak && !listenPaused()) types.push("listen");
   if (multi) types.push("build","build");
-  if (strength(item.es) >= 2 && !noType) types.push("type");
   let type = types[(idx + Math.floor(Math.random()*types.length)) % types.length];
   if (idx===0) type = "es2m"; // gentle start
   return makeQ(item, type);
@@ -642,11 +641,51 @@ function startLesson(key){
   if (S.hearts <= 0){ toast(t("noHearts")); return; }
   const les = findLesson(key);
   if (!les || !les.items.length){ toast(t("noWeak")); return; }
-  const pool = shuffle(les.items).slice(0, Math.min(10, les.items.length));
-  // pad to at least 6 questions
-  while(pool.length < 6) pool.push(les.items[Math.floor(Math.random()*les.items.length)]);
-  L = {key, label:les.label, queue: pool.map((it,i)=>makeQuestion(it,i)), total: pool.length, doneCount:0, mistakes:0, answered:0, correctN:0, sel:null, state:"ask", start:Date.now()};
+  if (key==="weak"){
+    const pool = shuffle(les.items).slice(0, 10);
+    while(pool.length < 6) pool.push(les.items[Math.floor(Math.random()*les.items.length)]);
+    L = {key, label:les.label, queue: pool.map((it,i)=>makeQuestion(it,i)), total: pool.length, doneCount:0, mistakes:0, answered:0, correctN:0, sel:null, state:"ask", start:Date.now(), grade:true, graded:new Set()};
+    go("lesson"); return;
+  }
+  const queue = buildLessonQueue(les, key);
+  L = {key, label:les.label, queue, total: queue.length, doneCount:0, mistakes:0, answered:0, correctN:0, sel:null, state:"ask", start:Date.now(),
+       grade:true, graded:new Set(), newN: queue.filter(q=>q.type==="intro").length};
   go("lesson");
+}
+// A unit lesson built on the same study methods as "Today's study":
+//  1. new words are shown with audio first (say them aloud),
+//  2. then recalled right away (recognition: Spanish → meaning / listening),
+//  3. then recalled again later in the lesson the harder way (meaning → Spanish / arranging),
+//  4. with a couple of words from earlier units mixed in (spaced, interleaved review).
+// Every first answer feeds the spaced-repetition schedule, so the words come back in Today's study.
+// No typing questions here.
+function lessonType(item, b){
+  const ty = srsType(item, b);
+  return ty === "type" ? (words(item.es).length >= 2 ? "build" : "m2es") : ty;
+}
+function buildLessonQueue(les, key){
+  srsSeed();
+  const isReview = les.items.length > 10 || les.label === t("review");
+  const items = isReview
+    ? shuffle(les.items).sort((a,b)=>(S.srs[a.es]?.b ?? -1) - (S.srs[b.es]?.b ?? -1)).slice(0, 10)  // weakest first
+    : les.items;
+  const fresh = shuffle(items.filter(i=>!S.srs[i.es]));
+  const known = shuffle(items.filter(i=>S.srs[i.es]));
+  const inLesson = new Set(items.map(i=>i.es));
+  const earlier = shuffle(ALL_ITEMS.filter(i=>S.srs[i.es] && !inLesson.has(i.es)))
+                  .sort((a,b)=>S.srs[a.es].due - S.srs[b.es].due).slice(0, isReview ? 0 : 2);
+  const queue = [], later = [];
+  for (let g = 0; g < fresh.length; g += 3){
+    const grp = fresh.slice(g, g+3);
+    grp.forEach(i=>queue.push({type:"intro", item:i}));
+    shuffle(grp).forEach(i=>queue.push(makeQ(i, Math.random()<0.3 && canSpeak && !listenPaused() ? "listen" : "es2m")));
+    grp.forEach(i=>later.push(makeQ(i, words(i.es).length >= 2 ? "build" : "m2es")));
+  }
+  // Words you have seen before are asked the harder way (meaning → Spanish, arranging).
+  known.forEach(i=>later.push(makeQ(i, lessonType(i, Math.max(S.srs[i.es].b, Math.random()<0.5 ? 2 : 3)))));
+  earlier.forEach(i=>later.push(makeQ(i, lessonType(i, S.srs[i.es].b))));
+  queue.push(...shuffle(later));
+  return queue;
 }
 
 /* ---- Endless word test ---- */
@@ -826,7 +865,7 @@ function check(){
   L.answered++;
   if (ok){ w.c++; L.correctN++; S.daily.correct++; L.state="right"; speak(q.item.es); L.combo=(L.combo||0)+1; L.maxCombo=Math.max(L.maxCombo||0,L.combo); }
   else { w.w++; L.mistakes++; if(!L.auto) S.hearts=Math.max(0,S.hearts-1); L.state="wrong"; L.combo=0; }
-  if (L.srs) srsGrade(q.item, ok);
+  if (L.srs || L.grade) srsGrade(q.item, ok);
   if (L.auto) checkQuests();
   save(); renderLesson();
   if (L.auto && ok){ clearTimeout(L.autoT); L.autoT = setTimeout(()=>{ if(view.name==="lesson" && L.state==="right") next(); }, 900); }
@@ -842,8 +881,13 @@ function next(){
     renderLesson(); return;
   }
   const q = L.queue.shift();
-  if (L.state==="right") L.doneCount++;
-  else L.queue.push(makeQuestion(q.item, 1)); // retry later
+  if (q.type==="intro"){
+    L.doneCount++;
+    if (!S.srs[q.item.es]) S.srs[q.item.es] = {b:0, due:dayStart(), n:0, lapse:0};
+    save();
+  }
+  else if (L.state==="right") L.doneCount++;
+  else L.queue.splice(Math.min(3, L.queue.length), 0, makeQ(q.item, q.type)); // try again a few cards later
   L.sel=null; L.state="ask";
   if (S.hearts<=0){ go("fail"); return; }
   if (!L.queue.length){ finishLesson(); return; }
@@ -880,6 +924,7 @@ function renderResult(){
       <div class="card" style="border-color:var(--ok)"><small style="background:var(--ok)">${t("accuracy")}</small>🎯 ${v.acc}%</div>
       <div class="card" style="border-color:var(--blue)"><small style="background:var(--blue)">${t("gemsGot")}</small>💎 ${v.gems}</div>
     </div>
+    <p class="muted" style="margin:0 0 16px">🔁 ${t("lessonSrsNote")}</p>
     <button class="btn" onclick="${v.advanced?"go('streak')":"go(S.tab)"}">${t("cont")}</button></div>`;
 }
 function renderFail(){
